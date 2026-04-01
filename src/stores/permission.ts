@@ -65,7 +65,15 @@ export const usePermissionStore = defineStore('permission', () => {
       }
 
       // 调用接口获取该用户所有的权限项（扁平数组）
-      const flatList = await getPermissionsByIdentificationApi({ username })
+      // 1. 不传 identifications，全量拉取当前用户所有权限
+      const allFlatList = await getPermissionsByIdentificationApi({ username })
+
+      if (!allFlatList || allFlatList.length === 0) return []
+
+      // 2. 前端过滤：只保留 identityLineage 包含 'system' 的节点（即该平台及其所有子节点）
+      const flatList = allFlatList.filter(
+        (item) => item.identityLineage && item.identityLineage.startsWith('system'),
+      )
 
       if (!flatList || flatList.length === 0) {
         return []
