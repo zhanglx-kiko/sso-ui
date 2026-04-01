@@ -94,13 +94,8 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import {
-  getUserListApi,
-  addUserApi,
-  updateUserInfoApi,
-  removeUserApi,
-  resetPasswordApi,
-} from '../api/auth'
+import { resetPasswordApi } from '../api/auth'
+import { getUserListApi, addUserApi, updateUserInfoApi, removeUserApi } from '../api/user'
 import type { UserDTO, UserQueryDTO } from '../types/auth'
 import { ElMessage, type FormInstance } from 'element-plus'
 
