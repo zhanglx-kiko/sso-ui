@@ -1,6 +1,7 @@
+import { h, resolveComponent } from 'vue'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { RouteRecordRaw } from 'vue-router'
+import { RouterView, type RouteRecordRaw } from 'vue-router'
 import { getPermissionsByIdentificationApi } from '@/api/permission'
 import { useUserStore } from '@/stores/user'
 import type { ApiPermission, AppMenu, MenuItem } from '@/types/menu'
@@ -22,32 +23,39 @@ export const usePermissionStore = defineStore('permission', () => {
   const listToTree = (list: ApiPermission[]): ApiPermission[] => {
     const map: Record<string, ApiPermission> = {}
     const roots: ApiPermission[] = []
+    const sortNodes = (nodes: ApiPermission[]): ApiPermission[] => {
+      return nodes
+        .sort((a, b) => (a.displayNo ?? 0) - (b.displayNo ?? 0))
+        .map((node) => ({
+          ...node,
+          children: node.children ? sortNodes(node.children) : [],
+        }))
+    }
 
-    // 1. 将所有节点存入 map，并初始化 children
     list.forEach((item) => {
       map[item.id] = { ...item, children: [] }
     })
 
-    // 2. 遍历组装树形结构
     list.forEach((item) => {
       const node = map[item.id]
-      // 假设 parentId 为 '0' 或 null/undefined 时表示根节点
+      if (!node) return
+
       if (item.parentId && String(item.parentId) !== '0' && map[item.parentId]) {
-        map[item.parentId].children?.push(node)
+        map[item.parentId]?.children?.push(node)
       } else {
         roots.push(node)
       }
     })
 
-    return roots
+    return sortNodes(roots)
   }
 
   /**
-   * 工具方法：从扁平列表中提取所有按钮级别的权限标识 (假设 type === 3 为按钮)
+   * 工具方法：从扁平列表中提取所有操作级别的权限标识 (后端 2=按钮, 3=接口)
    */
   const extractButtonPermissions = (flatList: ApiPermission[]): string[] => {
     return flatList
-      .filter((item) => item.type === 3 && item.identification)
+      .filter((item) => item.type >= 2 && item.identification)
       .map((item) => item.identification)
   }
 
@@ -64,27 +72,14 @@ export const usePermissionStore = defineStore('permission', () => {
         return []
       }
 
-      // 调用接口获取该用户所有的权限项（扁平数组）
-      // 1. 不传 identifications，全量拉取当前用户所有权限
       const allFlatList = await getPermissionsByIdentificationApi({ username })
 
       if (!allFlatList || allFlatList.length === 0) return []
 
-      // 2. 前端过滤：只保留 identityLineage 包含 'system' 的节点（即该平台及其所有子节点）
-      const flatList = allFlatList.filter(
-        (item) => item.identityLineage && item.identityLineage.startsWith('system'),
-      )
-
-      if (!flatList || flatList.length === 0) {
-        return []
-      }
-
-      // 提取并保存按钮级权限（给页面中的操作按钮鉴权用，如 v-auth 指令）
-      const btnPerms = extractButtonPermissions(flatList)
+      const btnPerms = extractButtonPermissions(allFlatList)
       setPermissions(btnPerms)
 
-      // 将扁平数组转换为树形结构并返回
-      return listToTree(flatList)
+      return listToTree(allFlatList)
     } catch (error) {
       console.error('获取用户权限菜单失败:', error)
       return []
@@ -96,36 +91,32 @@ export const usePermissionStore = defineStore('permission', () => {
    */
   const transformMenus = (nodes: ApiPermission[]): AppMenu[] => {
     const buildMenu = (treeNodes: ApiPermission[]): AppMenu[] => {
-      return (
-        treeNodes
-          // 过滤掉按钮类型，只保留目录(1)和菜单(2)
-          .filter((node) => node.type !== 3)
-          .map((node) => {
-            const menu: AppMenu = {
-              id: node.id,
-              // 路由 name 必须唯一，优先使用 identification，没有则使用 path 转换
-              name: node.identification || node.path.replace(/\//g, '') || `Menu_${node.id}`,
-              path: node.path,
-              meta: {
-                title: node.name,
-                icon: node.iconStr,
-                hidden: node.isFrame === 1, // 根据后端的 isFrame 控制是否隐藏
-                permission: node.identification,
-              },
-            }
+      return treeNodes
+        .filter((node) => node.type < 2)
+        .map((node) => {
+          const menu: AppMenu = {
+            id: node.id,
+            name:
+              node.identification || (node.path ? node.path.replace(/\//g, '') : `Menu_${node.id}`),
+            path: node.path || '',
+            meta: {
+              title: node.name,
+              icon: node.iconStr,
+              hidden: node.isFrame === 1,
+              permission: node.identification,
+            },
+          }
 
-            // 记录前端组件的文件路径，以供生成 Vue Router 使用
-            if (node.comPath) {
-              ;(menu as any).componentPath = node.comPath
-            }
+          if (node.comPath) {
+            ;(menu as any).componentPath = node.comPath
+          }
 
-            if (node.children && node.children.length > 0) {
-              menu.children = buildMenu(node.children)
-            }
+          if (node.children && node.children.length > 0) {
+            menu.children = buildMenu(node.children)
+          }
 
-            return menu
-          })
-      )
+          return menu
+        })
     }
 
     return buildMenu(nodes)
@@ -134,32 +125,103 @@ export const usePermissionStore = defineStore('permission', () => {
   /**
    * 3. 将 AppMenu 树转换为 Vue Router 可注册的 RouteRecordRaw 路由数组
    */
-  const generateRoutes = (menus: AppMenu[]): RouteRecordRaw[] => {
+  const generateRoutes = (menus: AppMenu[], parentPath = ''): RouteRecordRaw[] => {
     return menus.map((menu) => {
-      const route: RouteRecordRaw = {
-        path: menu.path.startsWith('/') ? menu.path : `/${menu.path}`,
-        name: menu.name,
-        meta: menu.meta,
-        children: [],
+      let routePath = menu.path.startsWith('/') ? menu.path : `/${menu.path}`
+
+      if (parentPath && routePath.startsWith(parentPath + '/')) {
+        routePath = routePath.substring(parentPath.length + 1)
+      } else if (parentPath && routePath.startsWith(parentPath)) {
+        routePath = routePath.substring(parentPath.length)
+        if (routePath.startsWith('/')) {
+          routePath = routePath.substring(1)
+        }
       }
 
       const componentPath = (menu as any).componentPath
-      if (componentPath) {
-        // 如果后端配置了组件路径，例如 "system/MenuMgr" 或者 "system/MenuMgr.vue"
+      const hasChildren = menu.children && menu.children.length > 0
+      const fullPath = menu.path.startsWith('/') ? menu.path : `/${menu.path}`
+
+      const route: any = {
+        path: routePath,
+        name: menu.name,
+        meta: menu.meta,
+      }
+
+      if (hasChildren) {
+        route.children = []
+        route.component = RouterView
+        const firstChildFullPath = menu.children?.[0]?.path || ''
+        let firstChildRelativePath = firstChildFullPath
+        if (firstChildFullPath.startsWith(fullPath + '/')) {
+          firstChildRelativePath = firstChildFullPath.substring(fullPath.length + 1)
+        }
+        route.redirect = firstChildRelativePath
+        route.children = generateRoutes(menu.children!, fullPath)
+      } else if (componentPath) {
         const cleanPath = componentPath.replace('.vue', '')
         const matchKey = `../views/${cleanPath}.vue`
 
-        // 从 import.meta.glob 中匹配懒加载函数，找不到则退化到 404 页面
-        route.component = viewModules[matchKey] || (() => import('@/views/error/NotFound.vue'))
-      }
+        const viewComponent = viewModules[matchKey]
+        if (!viewComponent) {
+          console.error(
+            `[动态路由错误] 致命：找不到前端组件文件 -> src/views/${cleanPath}.vue ，页面将降级为 404！请检查文件是否存在或路径拼写是否一致！`,
+          )
+        }
 
-      if (menu.children && menu.children.length > 0) {
-        route.children = generateRoutes(menu.children)
+        route.component = viewComponent || (() => import('@/views/error/NotFound.vue'))
+      } else {
+        route.component = () => import('@/views/error/NotFound.vue')
       }
 
       return route
     })
   }
+
+  /**
+   * 3. 将 AppMenu 树转换为 Vue Router 可注册的 RouteRecordRaw 路由数组
+   */
+  // const generateRoutes = (menus: AppMenu[]): RouteRecordRaw[] => {
+  //   return menus.map((menu) => {
+  //     const route: RouteRecordRaw = {
+  //       path: menu.path.startsWith('/') ? menu.path : `/${menu.path}`,
+  //       name: menu.name,
+  //       meta: menu.meta,
+  //       children: [],
+  //     }
+
+  //     const componentPath = (menu as any).componentPath
+  //     const hasChildren = menu.children && menu.children.length > 0
+
+  //     // ============== 核心路由装配逻辑 ==============
+  //     if (hasChildren) {
+  //       // 【防坑 1】只要有子节点，强制作为嵌套容器 (忽略数据库里可能填错的 comPath)
+  //       // 这样可以彻底避免父目录被渲染成 404，从而导致子路由全部挂掉
+  //       route.component = RouterView
+
+  //       // 【防坑 2】自动重定向到第一个子路由。
+  //       // 防止用户点击父目录(如 /system)时出现白屏或跳 404
+  //       const firstChildPath = menu.children[0].path
+  //       route.redirect = firstChildPath.startsWith('/') ? firstChildPath : `/${firstChildPath}`
+  //     } else if (componentPath) {
+  //       // 叶子节点：正常解析本地 Vue 组件
+  //       const cleanPath = componentPath.replace('.vue', '')
+  //       const matchKey = `../views/${cleanPath}.vue`
+  //       // 如果本地找不到该文件，才使用 404 页面兜底
+  //       route.component = viewModules[matchKey] || (() => import('@/views/error/NotFound.vue'))
+  //     } else {
+  //       // 异常节点兜底
+  //       route.component = () => import('@/views/error/NotFound.vue')
+  //     }
+
+  //     // 递归处理子节点
+  //     if (hasChildren) {
+  //       route.children = generateRoutes(menu.children)
+  //     }
+
+  //     return route
+  //   })
+  // }
 
   /**
    * 4. 将 AppMenu 树转换为 左侧菜单栏 (AppSidebar) 需要的 MenuItem 数组
@@ -174,7 +236,6 @@ export const usePermissionStore = defineStore('permission', () => {
         icon: menu.meta.icon,
         hidden: menu.meta.hidden,
         permission: menu.meta.permission,
-        children: [],
       }
 
       if (menu.children && menu.children.length > 0) {
@@ -186,7 +247,7 @@ export const usePermissionStore = defineStore('permission', () => {
   }
 
   /**
-   * 5. 这个方法已经在 fetchPermissions 中通过 extractButtonPermissions 完成了，
+   * 5. 这个方法已经在 fetchPermissions 中通过 extractButtonPe rmissions 完成了，
    * 留一个空实现或别名以兼容 router/index.ts 的调用逻辑。
    */
   const extractPermissions = (menus: AppMenu[]): string[] => {

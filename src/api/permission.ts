@@ -2,8 +2,6 @@ import request from '@/utils/request'
 import type {
   PermissionDTO,
   PermissionVO,
-  ImportProgressDTO,
-  ExportProgressDTO,
   PermissionQueryDTO,
 } from '@/types/permission'
 

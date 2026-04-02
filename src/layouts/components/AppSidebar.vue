@@ -1,17 +1,15 @@
 <template>
-  <div class="sidebar" :class="{ 'is-collapse': isCollapse }">
-    <div class="sidebar-logo">
-      <div class="logo-content">
-        <el-icon class="logo-icon" :size="28">
-          <Platform />
-        </el-icon>
-        <transition name="fade">
-          <span v-show="!isCollapse" class="logo-text">SSO 管理平台</span>
-        </transition>
-      </div>
+  <div class="sidebar" :class="{ 'is-collapse': isCollapse, 'is-mobile-visible': mobileVisible }">
+    <div class="sidebar__brand">
+      <div class="sidebar__brand-mark">台</div>
+      <transition name="sidebar-fade">
+        <div v-show="!isCollapse" class="sidebar__brand-copy">
+          <strong>后台管理系统</strong>
+        </div>
+      </transition>
     </div>
 
-    <el-scrollbar class="sidebar-scrollbar">
+    <el-scrollbar class="sidebar__scrollbar">
       <el-menu
         :default-active="activeMenu"
         :collapse="isCollapse"
@@ -19,39 +17,43 @@
         :unique-opened="true"
         router
         class="sidebar-menu"
+        @select="handleSelect"
       >
-        <SidebarItem
-          v-for="menu in menuList"
-          :key="menu.id"
-          :item="menu"
-          :base-path="menu.path"
-        />
+        <SidebarItem v-for="menu in menuList" :key="menu.id" :item="menu" />
       </el-menu>
     </el-scrollbar>
 
-    <div class="sidebar-footer">
-      <el-tooltip
-        :content="isCollapse ? '展开菜单' : '收起菜单'"
-        placement="right"
-        :disabled="!isCollapse"
-      >
-        <div class="collapse-btn" @click="toggleCollapse">
-          <el-icon :size="18">
-            <Fold v-if="!isCollapse" />
-            <Expand v-else />
-          </el-icon>
-        </div>
-      </el-tooltip>
+    <div class="sidebar__footer">
+      <button class="sidebar__collapse" type="button" @click="toggleCollapse">
+        <el-icon :size="18">
+          <Fold v-if="!isCollapse" />
+          <Expand v-else />
+        </el-icon>
+        <span v-show="!isCollapse">{{ isCollapse ? '展开' : '收起导航' }}</span>
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, provide } from 'vue'
 import { useRoute } from 'vue-router'
 import { useMenuStore } from '@/stores/menu'
-import { Platform, Fold, Expand } from '@element-plus/icons-vue'
+import { Expand, Fold } from '@element-plus/icons-vue'
 import SidebarItem from './SidebarItem.vue'
+
+const props = withDefaults(
+  defineProps<{
+    mobileVisible?: boolean
+  }>(),
+  {
+    mobileVisible: false,
+  },
+)
+
+const emit = defineEmits<{
+  (event: 'close-mobile'): void
+}>()
 
 const route = useRoute()
 const menuStore = useMenuStore()
@@ -60,133 +62,208 @@ const isCollapse = computed(() => menuStore.isCollapse)
 const activeMenu = computed(() => menuStore.activeMenu || route.path)
 const menuList = computed(() => menuStore.menuList)
 
+provide('isCollapse', isCollapse)
+
 const toggleCollapse = () => {
   menuStore.toggleCollapse()
+}
+
+const handleSelect = () => {
+  if (props.mobileVisible) {
+    emit('close-mobile')
+  }
 }
 </script>
 
 <style scoped>
 .sidebar {
   display: flex;
-  flex-direction: column;
-  width: 220px;
   height: 100%;
-  background-color: #304156;
-  transition: width 0.3s ease;
+  min-height: 0;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--app-shadow-soft);
+  transition:
+    width 0.3s ease,
+    transform 0.3s ease,
+    opacity 0.3s ease;
   overflow: hidden;
 }
 
 .sidebar.is-collapse {
-  width: 64px;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
-.sidebar-logo {
-  height: 60px;
+.sidebar__brand {
   display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 54px;
+  padding: 9px 10px;
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  background: var(--app-surface-muted);
+}
+
+.sidebar__brand-mark {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  background-color: #263445;
-  border-bottom: 1px solid #1f2d3d;
-  overflow: hidden;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(26, 115, 232, 0.14);
+  background: rgba(26, 115, 232, 0.08);
+  color: var(--app-accent-strong);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
 }
 
-.logo-content {
+.sidebar__brand-copy {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 16px;
+  min-width: 0;
+}
+
+.sidebar__brand-copy strong {
+  color: var(--sidebar-text);
+  font-size: 15px;
+  font-weight: 600;
   white-space: nowrap;
 }
 
-.logo-icon {
-  color: #409eff;
-  flex-shrink: 0;
-}
-
-.logo-text {
-  font-size: 16px;
-  font-weight: 600;
-  color: #fff;
-}
-
-.sidebar-scrollbar {
+.sidebar__scrollbar {
   flex: 1;
-  overflow: hidden;
+  min-height: 0;
 }
 
 .sidebar-menu {
   border-right: none;
-  background-color: transparent;
+  background: transparent;
   --el-menu-bg-color: transparent;
-  --el-menu-text-color: #bfcbd9;
-  --el-menu-active-color: #409eff;
-  --el-menu-hover-bg-color: #263445;
+  --el-menu-text-color: var(--sidebar-text);
+  --el-menu-active-color: var(--app-accent-strong);
+  --el-menu-hover-bg-color: #f1f5fb;
 }
 
 .sidebar-menu:not(.el-menu--collapse) {
-  width: 220px;
+  width: 100%;
 }
 
 :deep(.el-menu-item),
 :deep(.el-sub-menu__title) {
-  height: 50px;
-  line-height: 50px;
+  height: 48px;
+  margin-bottom: 6px;
+  border-radius: 999px;
+  color: var(--sidebar-text);
+  line-height: 48px;
+}
+
+:deep(.el-sub-menu__title),
+:deep(.el-menu-item) {
+  padding-left: 16px !important;
+}
+
+:deep(.el-menu-item .el-icon),
+:deep(.el-sub-menu__title .el-icon) {
+  margin-right: 12px;
+  color: var(--sidebar-muted);
 }
 
 :deep(.el-menu-item:hover),
 :deep(.el-sub-menu__title:hover) {
-  background-color: #263445 !important;
+  background: #f1f5fb !important;
 }
 
 :deep(.el-menu-item.is-active) {
-  background-color: #409eff !important;
-  color: #fff !important;
+  background: #e8f0fe !important;
+  color: var(--app-accent-strong) !important;
+  font-weight: 600;
+}
+
+:deep(.el-menu-item.is-active .el-icon),
+:deep(.el-sub-menu.is-active > .el-sub-menu__title .el-icon) {
+  color: var(--app-accent-strong) !important;
 }
 
 :deep(.el-sub-menu .el-menu-item) {
-  padding-left: 50px !important;
-  background-color: #1f2d3d;
+  height: 44px;
+  margin-left: 10px;
+  padding-left: 42px !important;
+  border-radius: 16px;
+  background: transparent;
+  line-height: 44px;
 }
 
-:deep(.el-sub-menu .el-menu-item:hover) {
-  background-color: #263445 !important;
+.sidebar__footer {
+  padding-top: 4px;
 }
 
-:deep(.el-sub-menu .el-menu-item.is-active) {
-  background-color: #409eff !important;
-}
-
-.sidebar-footer {
-  height: 50px;
-  display: flex;
+.sidebar__collapse {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-top: 1px solid #1f2d3d;
-}
-
-.collapse-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  gap: 10px;
   width: 100%;
-  height: 100%;
+  min-height: 44px;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--app-surface);
+  color: var(--sidebar-text);
   cursor: pointer;
-  color: #bfcbd9;
-  transition: all 0.3s;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
 }
 
-.collapse-btn:hover {
-  background-color: #263445;
-  color: #409eff;
+.sidebar__collapse:hover {
+  background: #f1f5fb;
+  border-color: #c6d4e5;
 }
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s;
+.sidebar-fade-enter-active,
+.sidebar-fade-leave-active {
+  transition: opacity 0.2s ease;
 }
 
-.fade-enter-from,
-.fade-leave-to {
+.sidebar-fade-enter-from,
+.sidebar-fade-leave-to {
   opacity: 0;
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    position: fixed;
+    top: 14px;
+    bottom: 14px;
+    left: 14px;
+    width: min(320px, calc(100vw - 28px));
+    z-index: 35;
+    transform: translateX(-120%);
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .sidebar.is-mobile-visible {
+    transform: translateX(0);
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    top: 12px;
+    bottom: 12px;
+    left: 12px;
+    width: min(320px, calc(100vw - 24px));
+    border-radius: 20px;
+  }
 }
 </style>

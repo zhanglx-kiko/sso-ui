@@ -53,7 +53,7 @@ export interface UserQueryDTO {
 
 // 对应 UserPasswordDTO
 export interface UserPasswordDTO {
-  userId?: string // Controller里自动填充，但定义上可以保留
+  userId?: string // 后端从登录态获取，前端无需传
   oldPassword: string
   newPassword: string
 }

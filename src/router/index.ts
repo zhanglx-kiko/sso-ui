@@ -1,4 +1,10 @@
-import { createRouter, createWebHistory, type RouteRecordRaw, type Router } from 'vue-router'
+import {
+  RouterView,
+  createRouter,
+  createWebHistory,
+  type RouteRecordRaw,
+  type Router,
+} from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
 import { useMenuStore } from '@/stores/menu'
@@ -43,7 +49,7 @@ export const fallbackMenus: MenuItem[] = [
   {
     id: 'users',
     name: 'UserMgr',
-    path: '/users',
+    path: '/system/auth/user',
     icon: 'User',
     title: '用户管理',
   },
@@ -57,14 +63,14 @@ export const fallbackMenus: MenuItem[] = [
       {
         id: 'system-menu',
         name: 'MenuMgr',
-        path: '/system/menu',
+        path: '/system/auth/permission',
         icon: 'List',
         title: '菜单管理',
       },
       {
         id: 'system-role',
         name: 'RoleMgr',
-        path: '/system/role',
+        path: '/system/auth/role',
         icon: 'User',
         title: '角色管理',
       },
@@ -132,33 +138,34 @@ const initFallbackRoutes = (): MenuItem[] => {
 
   const fallbackRoutes: RouteRecordRaw[] = [
     {
-      path: 'dashboard',
+      path: '/dashboard',
       name: 'Dashboard',
       component: () => import('@/views/DashboardView.vue'),
       meta: { title: '仪表盘', requiresAuth: true },
     },
     {
-      path: 'users',
+      path: '/system/auth/user',
       name: 'UserMgr',
-      component: () => import('@/views/UserMgr.vue'),
+      component: () => import('@/views/system/auth/user/UserMgr.vue'),
       meta: { title: '用户管理', requiresAuth: true },
     },
     {
-      path: 'system',
+      path: '/system',
       name: 'System',
-      redirect: '/system/menu',
+      component: RouterView,
+      redirect: '/system/auth/permission',
       meta: { title: '系统管理', requiresAuth: true },
       children: [
         {
-          path: 'menu',
+          path: 'auth/permission',
           name: 'MenuMgr',
-          component: () => import('@/views/system/MenuMgr.vue'),
+          component: () => import('@/views/system/auth/permission/PermissionMgr.vue'),
           meta: { title: '菜单管理', requiresAuth: true },
         },
         {
-          path: 'role',
+          path: 'auth/role',
           name: 'RoleMgr',
-          component: () => import('@/views/system/RoleMgr.vue'),
+          component: () => import('@/views/system/auth/role/RoleMgr.vue'),
           meta: { title: '角色管理', requiresAuth: true },
         },
       ],
@@ -197,7 +204,9 @@ router.beforeEach(async (to, from, next) => {
       if (!permissionStore.isLoaded) {
         router.addRoute(layoutRoute)
         await initDynamicRoutes()
-        next({ ...to, replace: true })
+
+        // 用 fullPath 确保使用纯净的路径重新匹配
+        next({ path: to.fullPath, replace: true })
       } else {
         next()
       }

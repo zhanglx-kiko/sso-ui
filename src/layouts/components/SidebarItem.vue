@@ -62,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, type Component } from 'vue'
+import { computed, inject, unref, type Component } from 'vue'
 import type { MenuItem } from '@/types/menu'
 import {
   House,
@@ -89,6 +89,9 @@ import {
   Cpu,
   Connection,
   Link as LinkIcon,
+  Lock,
+  Shop,
+  Present,
 } from '@element-plus/icons-vue'
 
 interface Props {
@@ -100,7 +103,8 @@ const props = withDefaults(defineProps<Props>(), {
   basePath: '',
 })
 
-const isCollapse = inject<boolean>('isCollapse', false)
+const injectedCollapse = inject('isCollapse', false)
+const isCollapse = computed(() => Boolean(unref(injectedCollapse)))
 
 const iconMap: Record<string, Component> = {
   House,
@@ -128,6 +132,15 @@ const iconMap: Record<string, Component> = {
   Cpu,
   Connection,
   Link: LinkIcon,
+  Lock,
+  Shop,
+  Present,
+  lock: Lock,
+  setting: Setting,
+  shop: Shop,
+  'shopping-cart': ShoppingCart,
+  present: Present,
+  document: Document,
 }
 
 const getIcon = (iconName: string): Component => {
@@ -136,6 +149,9 @@ const getIcon = (iconName: string): Component => {
 
 const resolvePath = (routePath: string): string => {
   if (isExternal(routePath)) {
+    return routePath
+  }
+  if (routePath.startsWith('/')) {
     return routePath
   }
   if (isExternal(props.basePath)) {
@@ -166,6 +182,7 @@ const hasChildren = computed(() => {
 
 <style scoped>
 .menu-link {
+  display: block;
   text-decoration: none;
   color: inherit;
 }
@@ -175,6 +192,8 @@ const hasChildren = computed(() => {
 }
 
 :deep(.el-badge__content) {
-  transform: scale(0.8);
+  transform: scale(0.86);
+  border: none;
+  box-shadow: none;
 }
 </style>
