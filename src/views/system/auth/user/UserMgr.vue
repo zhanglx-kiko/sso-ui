@@ -186,6 +186,7 @@ import {
   getRoleWithUsersApi,
   getRolesByUserIdApi,
 } from '../../../../api/role'
+import { showGlobalError } from '../../../../stores/globalError'
 import type { UserDTO, UserQueryDTO } from '../../../../types/auth'
 
 interface RoleOption {
@@ -524,7 +525,9 @@ const openAssignRoleDialog = async (row: UserDTO) => {
   } catch (error) {
     roleDialog.visible = false
     resetRoleDialog()
-    ElMessage.error(error instanceof Error ? error.message : '加载角色信息失败')
+    showGlobalError(error, {
+      fallbackMessage: '加载角色信息失败',
+    })
   } finally {
     roleDialog.loading = false
   }
@@ -571,7 +574,9 @@ const submitRoleAssignments = async () => {
     roleDialog.visible = false
     ElMessage.success('角色分配已更新')
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : '保存角色分配失败')
+    showGlobalError(error, {
+      fallbackMessage: '保存角色分配失败',
+    })
   } finally {
     roleDialog.saving = false
   }

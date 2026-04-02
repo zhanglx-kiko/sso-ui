@@ -5,7 +5,21 @@ export const STORAGE_KEYS = {
 
 export const TOKEN_HEADER_KEY = 'token'
 
-export const TOKEN_EXPIRED_KEYWORDS = ['token 已被冻结', 'token已被冻结', 'token expired', 'token invalid'] as const
+export const TOKEN_EXPIRED_KEYWORDS = [
+  'token 已被冻结',
+  'token已被冻结',
+  'token已过期',
+  'token 失效',
+  'token无效',
+  'token invalid',
+  'token expired',
+  '登录已过期',
+  '登录状态已失效',
+  '认证已失效',
+  '已被下线',
+  '被踢下线',
+  '已下线',
+] as const
 
 export const HTTP_STATUS = {
   UNAUTHORIZED: 401,

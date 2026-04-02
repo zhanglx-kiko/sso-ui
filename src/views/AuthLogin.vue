@@ -78,6 +78,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { Hide, Lock, User, View } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance } from 'element-plus'
 import { loginApi } from '../api/auth'
+import { hasHandledGlobalError } from '../stores/globalError'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
@@ -118,6 +119,10 @@ const handleLogin = async () => {
       loginPasswordVisible.value = false
       ElMessage.success('登录成功')
       router.push(redirectPath.value)
+    } catch (error) {
+      if (!hasHandledGlobalError(error)) {
+        ElMessage.error(error instanceof Error ? error.message : '登录失败')
+      }
     } finally {
       loading.value = false
     }

@@ -17,10 +17,11 @@
           <strong>{{ currentDateLabel }}</strong>
         </div>
 
-        <el-tooltip content="全屏" placement="bottom">
+        <el-tooltip :content="fullscreenActionLabel" placement="bottom">
           <button class="app-header__icon-button" type="button" @click="toggleFullscreen">
             <el-icon :size="18">
-              <FullScreen />
+              <ScaleToOriginal v-if="isFullscreen" />
+              <FullScreen v-else />
             </el-icon>
           </button>
         </el-tooltip>
@@ -75,7 +76,7 @@
   >
     <div class="password-dialog__intro">
       <strong>当前账号：{{ resolvedUserName }}</strong>
-      <span>输入旧密码并确认新密码后即可完成修改，接口将从登录态自动识别用户。</span>
+      <span>输入旧密码并确认新密码后即可完成修改。</span>
     </div>
 
     <el-form
@@ -181,7 +182,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -196,6 +197,7 @@ import {
   Hide,
   Lock,
   Operation,
+  ScaleToOriginal,
   SwitchButton,
   User,
   UserFilled,
@@ -216,9 +218,12 @@ const isLoggingOut = ref(false)
 const passwordDialogVisible = ref(false)
 const passwordSubmitting = ref(false)
 const passwordFormRef = ref<FormInstance>()
+const isFullscreen = ref(Boolean(document.fullscreenElement))
 
 const userInfo = computed(() => userStore.userInfo)
-const resolvedUserName = computed(() => userInfo.value?.nickname || userInfo.value?.username || '管理员')
+const resolvedUserName = computed(
+  () => userInfo.value?.nickname || userInfo.value?.username || '管理员',
+)
 const pageTitle = computed(() => String(route.meta.title || '控制台'))
 const currentDateLabel = computed(() =>
   new Intl.DateTimeFormat('zh-CN', {
@@ -228,6 +233,7 @@ const currentDateLabel = computed(() =>
   }).format(new Date()),
 )
 const displayUserName = computed(() => truncateUserName(resolvedUserName.value))
+const fullscreenActionLabel = computed(() => (isFullscreen.value ? '缩小' : '全屏'))
 
 type PasswordFieldKey = 'oldPassword' | 'newPassword' | 'confirmPassword'
 
@@ -243,7 +249,11 @@ const passwordVisibility = reactive<Record<PasswordFieldKey, boolean>>({
   confirmPassword: false,
 })
 
-const validateConfirmPassword = (_rule: unknown, value: string, callback: (error?: Error) => void) => {
+const validateConfirmPassword = (
+  _rule: unknown,
+  value: string,
+  callback: (error?: Error) => void,
+) => {
   if (!value) {
     callback(new Error('请再次输入新密码'))
     return
@@ -299,6 +309,10 @@ const breadcrumbs = computed(() => {
   }))
 })
 
+const syncFullscreenState = () => {
+  isFullscreen.value = Boolean(document.fullscreenElement)
+}
+
 const toggleFullscreen = async () => {
   try {
     if (!document.fullscreenElement) {
@@ -308,6 +322,8 @@ const toggleFullscreen = async () => {
     }
   } catch {
     ElMessage.warning('当前环境暂不支持全屏切换')
+  } finally {
+    syncFullscreenState()
   }
 }
 
@@ -406,6 +422,15 @@ const handleCommand = async (command: string) => {
       break
   }
 }
+
+onMounted(() => {
+  syncFullscreenState()
+  document.addEventListener('fullscreenchange', syncFullscreenState)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange', syncFullscreenState)
+})
 </script>
 
 <style scoped>
@@ -445,7 +470,7 @@ const handleCommand = async (command: string) => {
 }
 
 .app-header__main {
-  min-height: 42px;
+  min-height: 48px;
 }
 
 .app-header__titles {
@@ -459,7 +484,8 @@ const handleCommand = async (command: string) => {
   min-width: 0;
   flex-shrink: 0;
   justify-content: flex-end;
-  margin-top: 2px;
+  padding-top: 4px;
+  transform: translateY(5px);
 }
 
 .app-header__title {
@@ -660,7 +686,8 @@ const handleCommand = async (command: string) => {
   }
 
   .app-header__actions {
-    margin-top: 0;
+    padding-top: 0;
+    transform: none;
     justify-content: space-between;
   }
 

@@ -3,12 +3,12 @@ import axios, {
   type AxiosResponse,
   type InternalAxiosRequestConfig,
 } from 'axios'
-import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
 import { useMenuStore } from '@/stores/menu'
 import router from '@/router'
 import { TOKEN_EXPIRED_KEYWORDS, ROUTE_WHITE_LIST, HTTP_STATUS, BIZ_CODE } from '@/constants'
+import { extractErrorMessage, markGlobalErrorHandled, showGlobalError } from '@/stores/globalError'
 
 const service: AxiosInstance = axios.create({
   baseURL: '/api',
@@ -65,6 +65,10 @@ const isLogoutRequest = (config?: InternalAxiosRequestConfig): boolean => {
   return url.includes('/logout') || url.includes('/apis/v1/auth/logout')
 }
 
+const createHandledError = (payload: unknown, fallbackMessage = '系统错误'): Error => {
+  return markGlobalErrorHandled(new Error(extractErrorMessage(payload, fallbackMessage)))
+}
+
 const handleTokenExpired = (skipMessage = false): void => {
   if (isRedirecting) return
   isRedirecting = true
@@ -79,8 +83,10 @@ const handleTokenExpired = (skipMessage = false): void => {
   permissionStore.clearPermission()
   menuStore.clearMenu()
 
-  if (!skipMessage && !isWhiteListPage()) {
-    ElMessage.error('登录已过期，请重新登录')
+  if (!skipMessage) {
+    showGlobalError('登录已过期，请重新登录', {
+      autoCloseMs: 3200,
+    })
   }
 
   const currentPath = router.currentRoute.value.path
@@ -135,20 +141,25 @@ service.interceptors.response.use(
       return Promise.reject(new Error(res.msg || 'Error'))
     }
 
-    if (res.code === BIZ_CODE.UNAUTHORIZED || res.code === BIZ_CODE.TOKEN_EXPIRED) {
-      handleTokenExpired(isLoggingOut || isWhiteListPage())
-      return Promise.reject(new Error('Token已过期'))
+    if (res.code === BIZ_CODE.TOKEN_EXPIRED) {
+      handleTokenExpired(isLoggingOut)
+      return Promise.reject(createHandledError('登录已过期，请重新登录'))
     }
 
-    if (isTokenExpiredError(res.msg)) {
-      handleTokenExpired(isLoggingOut || isWhiteListPage())
-      return Promise.reject(new Error('Token已过期'))
+    if (res.code === BIZ_CODE.UNAUTHORIZED && isTokenExpiredError(res.msg || '')) {
+      handleTokenExpired(isLoggingOut)
+      return Promise.reject(createHandledError('登录已过期，请重新登录'))
     }
 
-    if (!isWhiteListPage()) {
-      ElMessage.error(res.msg || '系统错误')
+    if (isTokenExpiredError(res.msg || '')) {
+      handleTokenExpired(isLoggingOut)
+      return Promise.reject(createHandledError('登录已过期，请重新登录'))
     }
-    return Promise.reject(new Error(res.msg || 'Error'))
+
+    showGlobalError(res, {
+      fallbackMessage: '系统错误',
+    })
+    return Promise.reject(createHandledError(res, '系统错误'))
   },
   (error) => {
     removePendingRequest(error.config as InternalAxiosRequestConfig)
@@ -164,23 +175,22 @@ service.interceptors.response.use(
     }
 
     const status = error.response?.status
+    const errorMessage = extractErrorMessage(error, '网络异常，请稍后重试')
 
-    if (status === HTTP_STATUS.UNAUTHORIZED) {
-      handleTokenExpired(isLoggingOut || isWhiteListPage())
-      return Promise.reject(error)
+    if (status === HTTP_STATUS.UNAUTHORIZED && isTokenExpiredError(errorMessage)) {
+      handleTokenExpired(isLoggingOut)
+      return Promise.reject(markGlobalErrorHandled(error))
     }
-
-    const errorMessage = error.response?.data?.msg || error.message || '网络异常'
 
     if (isTokenExpiredError(errorMessage)) {
-      handleTokenExpired(isLoggingOut || isWhiteListPage())
-      return Promise.reject(error)
+      handleTokenExpired(isLoggingOut)
+      return Promise.reject(markGlobalErrorHandled(error))
     }
 
-    if (!isWhiteListPage()) {
-      ElMessage.error(errorMessage)
-    }
-    return Promise.reject(error)
+    showGlobalError(error, {
+      fallbackMessage: '网络异常，请稍后重试',
+    })
+    return Promise.reject(markGlobalErrorHandled(error))
   },
 )
 
