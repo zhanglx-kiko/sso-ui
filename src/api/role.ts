@@ -1,58 +1,62 @@
 import request from '@/utils/request'
-// 假设您的类型定义文件在 @/types/role
-// import type { RoleDTO, RoleInfoVO, RolePermissionRelationshipMappingDTO, PageQuery, PageResult } from '@/types/role'
+import type { PageResult, StatusPayload } from '@/types/common'
+import type {
+  RoleDTO,
+  RoleInfoVO,
+  RolePageQueryDTO,
+  RolePermissionRelationshipMappingDTO,
+} from '@/types/system'
 
-// 1. 新增角色
-export const addRoleApi = (data: any) => {
-  return request.post<unknown, any>('/apis/v1/roles', data)
+export const getRolePageApi = (data: RolePageQueryDTO & Record<string, unknown>) => {
+  return request.post<unknown, PageResult<RoleDTO>>('/apis/v1/auth/s/roles/page', data)
 }
 
-// 2. 修改角色信息
-export const updateRoleApi = (id: string | number, data: any) => {
-  return request.put<unknown, any>(`/apis/v1/roles/${id}`, data)
+export const getRoleDetailApi = (roleId: string) => {
+  return request.get<unknown, RoleDTO>(`/apis/v1/auth/s/roles/${roleId}`)
 }
 
-// 3. 删除角色（单个）
-export const delRoleApi = (id: string | number) => {
-  return request.delete<unknown, any>(`/apis/v1/roles/${id}`)
+export const createRoleApi = (data: RoleDTO) => {
+  return request.post<unknown, RoleDTO>('/apis/v1/auth/s/roles', data)
 }
 
-// 4. 批量删除角色
-export const batchDelRoleApi = (idList: Array<string | number>) => {
-  return request.delete<unknown, void>('/apis/v1/roles/batch', { data: idList })
+export const updateRoleApi = (roleId: string, data: RoleDTO) => {
+  return request.put<unknown, void>(`/apis/v1/auth/s/roles/${roleId}`, data)
 }
 
-// 5. 分页查询角色列表
-export const getRolePageApi = (data: any) => {
-  return request.post<unknown, any>('/apis/v1/roles/page', data)
+export const deleteRoleApi = (roleId: string) => {
+  return request.delete<unknown, void>(`/apis/v1/auth/s/roles/${roleId}`)
 }
 
-// 6. 获取角色详情
-export const getRoleDetailApi = (roleId: string | number) => {
-  return request.get<unknown, any>(`/apis/v1/roles/${roleId}`)
+export const batchDeleteRolesApi = (roleIds: string[]) => {
+  return request.delete<unknown, void>('/apis/v1/auth/s/roles', {
+    data: roleIds,
+  })
 }
 
-// 7. 获取角色详情（包含关联用户 ID 列表）
-export const getRoleWithUsersApi = (roleId: string | number) => {
-  return request.get<unknown, any>(`/apis/v1/roles/${roleId}/users`)
+export const updateRoleStatusApi = (roleId: string, data: StatusPayload) => {
+  return request.patch<unknown, void>(`/apis/v1/auth/s/roles/${roleId}/status`, data)
 }
 
-// 8. 为角色绑定用户
-export const bindUsersToRoleApi = (roleId: string | number, userIds: Array<string | number>) => {
-  return request.post<unknown, any>(`/apis/v1/roles/${roleId}/users`, userIds)
+export const getRoleUsersApi = (roleId: string) => {
+  return request.get<unknown, RoleInfoVO>(`/apis/v1/auth/s/roles/${roleId}/users`)
 }
 
-// 9. 为角色分配权限
-export const associatePermissionsApi = (roleId: string | number, permissions: any[]) => {
-  return request.post<unknown, any>(`/apis/v1/roles/${roleId}/permissions`, permissions)
+export const updateRoleUsersApi = (roleId: string, userIds: string[]) => {
+  return request.put<unknown, RoleInfoVO>(`/apis/v1/auth/s/roles/${roleId}/users`, userIds)
 }
 
-// 10. 查询当前登录用户的角色列表
+export const updateRolePermissionsApi = (
+  roleId: string,
+  permissions: RolePermissionRelationshipMappingDTO[],
+) => {
+  return request.put<unknown, RoleDTO>(`/apis/v1/auth/s/roles/${roleId}/permissions`, permissions)
+}
+
 export const getMyRolesApi = () => {
-  return request.get<unknown, any[]>('/apis/v1/roles/my-roles')
+  return request.get<unknown, RoleDTO[]>('/apis/v1/auth/s/roles/my')
 }
 
-// 11. 根据用户 ID 查询用户关联的角色列表
-export const getRolesByUserIdApi = (userId: string | number) => {
-  return request.get<unknown, any[]>(`/apis/v1/roles/user/${userId}`)
-}
+// Compatibility exports for legacy pages kept in the repository.
+export const bindUsersToRoleApi = updateRoleUsersApi
+export const getRoleWithUsersApi = getRoleUsersApi
+export const getRolesByUserIdApi = async (_userId: string) => [] as RoleDTO[]

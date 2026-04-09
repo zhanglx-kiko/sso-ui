@@ -7,7 +7,7 @@
       :stats="overviewStats"
     >
       <template #actions>
-        <el-button plain @click="router.push('/system/auth/user')">查看用户</el-button>
+        <el-button plain @click="router.push('/system/auth/user')">查看管理员</el-button>
         <el-button type="primary" @click="router.push('/system/auth/permission')">
           进入权限中心
         </el-button>
@@ -100,49 +100,60 @@
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Connection, Menu, User, UserFilled } from '@element-plus/icons-vue'
+import { Connection, Document, Folder, Grid, Menu, Setting, User, UserFilled } from '@element-plus/icons-vue'
 import AppPageHeader from '@/components/AppPageHeader.vue'
+import { getDeptTreeApi } from '@/api/dept'
+import { getPermissionTreeApi } from '@/api/permission'
+import { getRolePageApi } from '@/api/role'
+import { getUserPageApi } from '@/api/user'
+import { countTreeNodes } from '@/utils/admin'
 
 const router = useRouter()
 
-const overviewStats = [
-  { label: '统一账号', value: '1,234', hint: '已纳入当前管理体系' },
-  { label: '角色模型', value: '56', hint: '覆盖管理与业务权限层级' },
-  { label: '菜单节点', value: '128', hint: '支持持续扩展业务入口' },
-  { label: '在线会话', value: '89', hint: '系统运行状态平稳' },
-]
+const userTotal = ref('--')
+const roleTotal = ref('--')
+const permissionTotal = ref('--')
+const deptTotal = ref('--')
 
-const metricCards = [
+const overviewStats = computed(() => [
+  { label: '后台账号', value: userTotal.value, hint: '已纳入当前管理体系' },
+  { label: '角色模型', value: roleTotal.value, hint: '覆盖权限分工层级' },
+  { label: '权限节点', value: permissionTotal.value, hint: '菜单、按钮与接口统一管理' },
+  { label: '部门层级', value: deptTotal.value, hint: '支撑用户归属和数据范围' },
+])
+
+const metricCards = computed(() => [
   {
     label: '用户总数',
-    value: '1,234',
-    hint: '较昨日新增 32 位活跃账号',
+    value: userTotal.value,
+    hint: '来源于用户分页接口 total',
     icon: User,
     tone: 'tone-emerald',
   },
   {
     label: '角色规模',
-    value: '56',
-    hint: '权限模型已形成清晰分层',
+    value: roleTotal.value,
+    hint: '来源于角色分页接口 total',
     icon: UserFilled,
     tone: 'tone-amber',
   },
   {
     label: '权限节点',
-    value: '128',
-    hint: '菜单与按钮权限继续可扩展',
+    value: permissionTotal.value,
+    hint: '来源于权限树节点统计',
     icon: Menu,
     tone: 'tone-slate',
   },
   {
-    label: '在线用户',
-    value: '89',
-    hint: '当前会话状态稳定可控',
+    label: '部门层级',
+    value: deptTotal.value,
+    hint: '来源于部门树节点统计',
     icon: Connection,
     tone: 'tone-ocean',
   },
-]
+])
 
 const focusItems = [
   {
@@ -176,10 +187,34 @@ const quickActions = [
     icon: UserFilled,
   },
   {
-    title: '菜单管理',
+    title: '权限管理',
     description: '维护路由与可见权限节点',
     path: '/system/auth/permission',
     icon: Menu,
+  },
+  {
+    title: '部门管理',
+    description: '整理组织树与归属关系',
+    path: '/system/auth/dept',
+    icon: Folder,
+  },
+  {
+    title: '系统参数',
+    description: '查看默认密码等运行参数',
+    path: '/system/auth/config',
+    icon: Setting,
+  },
+  {
+    title: '字典管理',
+    description: '维护状态值与通用选项',
+    path: '/system/auth/dict',
+    icon: Document,
+  },
+  {
+    title: '应用管理',
+    description: '维护系统应用和会员应用',
+    path: '/system/auth/app',
+    icon: Grid,
   },
 ]
 
@@ -205,6 +240,39 @@ const boardCards = [
     description: '适合展示关键管理动作与最近一次高风险操作记录。',
   },
 ]
+
+const loadOverview = async () => {
+  try {
+    const [userPage, rolePage, permissionTree, deptTree] = await Promise.all([
+      getUserPageApi({
+        pageNum: 1,
+        pageSize: 1,
+        searchKey: '',
+      }),
+      getRolePageApi({
+        pageNum: 1,
+        pageSize: 1,
+        searchKey: '',
+      }),
+      getPermissionTreeApi(),
+      getDeptTreeApi(),
+    ])
+
+    userTotal.value = String(userPage.total ?? 0)
+    roleTotal.value = String(rolePage.total ?? 0)
+    permissionTotal.value = String(countTreeNodes(permissionTree))
+    deptTotal.value = String(countTreeNodes(deptTree))
+  } catch {
+    userTotal.value = '--'
+    roleTotal.value = '--'
+    permissionTotal.value = '--'
+    deptTotal.value = '--'
+  }
+}
+
+onMounted(() => {
+  loadOverview()
+})
 </script>
 
 <style scoped>
@@ -309,6 +377,7 @@ const boardCards = [
 
 .action-grid {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -387,6 +456,10 @@ const boardCards = [
 @media (max-width: 1200px) {
   .dashboard-grid,
   .dashboard-board {
+    grid-template-columns: 1fr;
+  }
+
+  .action-grid {
     grid-template-columns: 1fr;
   }
 }

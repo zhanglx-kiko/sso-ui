@@ -3,8 +3,8 @@ import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
-
-import ElementPlus from 'element-plus'
+import { setupAuthSessionMonitor } from '@/utils/authMonitor'
+import { setupElementPlus } from '@/plugins/element-plus'
 import 'element-plus/dist/index.css'
 import '@/assets/styles/index.scss'
 
@@ -12,6 +12,7 @@ const app = createApp(App)
 
 app.use(createPinia())
 app.use(router)
-app.use(ElementPlus)
+setupElementPlus(app)
+setupAuthSessionMonitor()
 
 app.mount('#app')

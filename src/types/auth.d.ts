@@ -1,59 +1,86 @@
-// 通用响应结构 Result<T>
-export interface ApiResult<T = unknown> {
-  code: number
-  msg: string
-  data: T
-}
-
-// 分页结构 Page<T>
-export interface PageResult<T> {
-  records: T[]
-  total: number
-  size: number
-  current: number
-}
-
-// 对应 LoginDTO
 export interface LoginDTO {
   username: string
   password: string
   device?: string
 }
 
-// 对应 LoginVO
 export interface LoginVO {
-  id: string // 雪花算法ID转为了String
+  id: string
   username: string
   nickname: string
-  avatar: string
-  deptId: string
+  avatar: string | null
+  deptId: string | null
   tokenName: string
   tokenValue: string
 }
 
-// 对应 UserDTO (新增/修改)
-export interface UserDTO {
-  id?: string // 新增为空，修改必填
-  username: string
-  password?: string // 仅新增时可能需要，修改基本信息不需要
-  nickname: string
-  avatar?: string
-  deptId?: string
-  allowConcurrentLogin?: number // 0-禁止(会顶号)，1-允许(默认)
-  status?: number // 1-正常, 0-禁用
+export interface UserPasswordDTO {
+  oldPassword: string
+  newPassword: string
 }
 
-// 对应 UserQueryDTO
+export interface ForgotPasswordDTO {
+  username: string
+  newPassword: string
+  verificationCode: string
+}
+
+export interface MemberLoginDTO {
+  phoneNumber: string
+  password: string
+  device?: string
+}
+
+export interface MemberRegisterDTO {
+  phoneNumber: string
+  password: string
+  code: string
+  device?: string
+}
+
+export interface MemberVerificationCodeSendDTO {
+  phoneNumber: string
+  scene: 'REGISTER' | 'FORGOT_PASSWORD' | 'BIND_PHONE'
+}
+
+export interface MemberForgotPasswordDTO {
+  phoneNumber: string
+  newPassword: string
+  verificationCode: string
+}
+
+export interface MemberBindPhoneDTO {
+  phoneNumber: string
+  verificationCode: string
+}
+
+export interface MemberInfoVO {
+  id: string
+  phoneNumber: string
+  phoneBound: boolean
+  status: number
+  registerIp: string | null
+  lastLoginTime: string | null
+  createTime: string
+}
+
+export interface UserDTO {
+  id?: string
+  username: string
+  nickname?: string
+  avatar?: string | null
+  phoneNumber?: string
+  email?: string
+  allowConcurrentLogin?: number
+  deptId?: string | null
+  status?: number
+  password?: string
+}
+
 export interface UserQueryDTO {
   pageNum: number
   pageSize: number
+  searchKey?: string
   username?: string
   deptId?: string
-}
-
-// 对应 UserPasswordDTO
-export interface UserPasswordDTO {
-  userId?: string // 后端从登录态获取，前端无需传
-  oldPassword: string
-  newPassword: string
 }

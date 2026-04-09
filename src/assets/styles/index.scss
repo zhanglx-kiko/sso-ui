@@ -151,6 +151,10 @@ select {
   box-shadow: var(--app-shadow-soft);
 }
 
+.panel--table {
+  contain: layout paint;
+}
+
 .panel-header {
   display: flex;
   align-items: flex-start;
@@ -182,24 +186,79 @@ select {
 }
 
 .filters-form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px 12px;
+  align-items: end;
+  padding: 14px;
+  border: 1px solid #e4ebf3;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(245, 248, 253, 0.92) 100%),
+    var(--app-surface);
+  contain: layout paint;
 }
 
 .filters-form .el-form-item {
   margin: 0;
 }
 
+.filters-form .el-form-item__label {
+  padding-bottom: 6px;
+  color: var(--app-muted-strong);
+  font-size: 12px;
+  line-height: 1.3;
+}
+
 .filters-form .el-form-item__content {
-  min-width: 190px;
+  width: 100%;
+  min-width: 0;
+}
+
+.filters-form .el-input,
+.filters-form .el-select,
+.filters-form .el-date-editor,
+.filters-form .el-tree-select {
+  width: 100%;
+}
+
+.filters-form .el-input__wrapper,
+.filters-form .el-select__wrapper,
+.filters-form .el-picker__wrapper {
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.filters-form .el-input__wrapper:hover,
+.filters-form .el-select__wrapper:hover,
+.filters-form .el-picker__wrapper:hover {
+  border-color: #afc3dc;
+  background: #ffffff;
+}
+
+.filters-form .el-input__wrapper.is-focus,
+.filters-form .el-select__wrapper.is-focused,
+.filters-form .el-picker__wrapper.is-focused {
+  background: #ffffff;
+}
+
+.filters-form__item--wide {
+  grid-column: span 2;
+}
+
+.filters-form__actions {
+  grid-column: 1 / -1;
 }
 
 .filters-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  align-items: center;
+}
+
+.filters-form--compact {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  padding: 12px;
 }
 
 .panel-footer {
@@ -552,14 +611,19 @@ select {
   }
 
   .filters-form {
-    flex-direction: column;
-    align-items: stretch;
+    grid-template-columns: 1fr;
+    padding: 12px;
   }
 
   .filters-form .el-form-item,
   .filters-form .el-form-item__content {
     width: 100%;
     min-width: 0;
+  }
+
+  .filters-form__item--wide,
+  .filters-form__actions {
+    grid-column: auto;
   }
 
   .panel-actions,

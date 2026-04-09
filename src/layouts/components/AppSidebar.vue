@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="sidebar" :class="{ 'is-collapse': isCollapse, 'is-mobile-visible': mobileVisible }">
     <div class="sidebar__brand">
       <div class="sidebar__brand-mark">台</div>
@@ -159,7 +159,7 @@ const handleSelect = () => {
 :deep(.el-menu-item),
 :deep(.el-sub-menu__title) {
   height: 48px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   border-radius: 999px;
   color: var(--sidebar-text);
   line-height: 48px;
@@ -187,18 +187,24 @@ const handleSelect = () => {
   font-weight: 600;
 }
 
+:deep(.el-sub-menu.is-active > .el-sub-menu__title) {
+  background: rgba(232, 240, 254, 0.72) !important;
+  color: var(--app-accent-strong) !important;
+  font-weight: 600;
+}
+
 :deep(.el-menu-item.is-active .el-icon),
 :deep(.el-sub-menu.is-active > .el-sub-menu__title .el-icon) {
   color: var(--app-accent-strong) !important;
 }
 
-:deep(.el-sub-menu .el-menu-item) {
-  height: 44px;
-  margin-left: 10px;
-  padding-left: 42px !important;
-  border-radius: 16px;
+:deep(.el-menu--inline) {
+  padding-top: 2px;
+  padding-bottom: 4px;
+}
+
+:deep(.el-sub-menu .el-menu) {
   background: transparent;
-  line-height: 44px;
 }
 
 .sidebar__footer {

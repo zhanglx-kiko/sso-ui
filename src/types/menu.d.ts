@@ -5,19 +5,20 @@ export interface ApiPermission {
   id: string
   name: string
   identification: string
-  parentId: string
-  identityLineage: string
-  comPath: string
-  path: string
-  iconStr: string
+  parentId?: string | null
+  identityLineage?: string
+  comPath?: string
+  path?: string
+  iconStr?: string
   displayNo: number
-  isFrame: number
+  isFrame?: number
   type: number
-  remark: string
-  createBy: string
-  createTime: string
-  updateBy: string
-  updateTime: string
+  status?: number
+  remark?: string
+  createBy?: string
+  createTime?: string
+  updateBy?: string
+  updateTime?: string
   children?: ApiPermission[]
 }
 

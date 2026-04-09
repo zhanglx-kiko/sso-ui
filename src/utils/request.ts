@@ -4,11 +4,17 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios'
 import { useUserStore } from '@/stores/user'
-import { usePermissionStore } from '@/stores/permission'
 import { useMenuStore } from '@/stores/menu'
-import router from '@/router'
-import { TOKEN_EXPIRED_KEYWORDS, ROUTE_WHITE_LIST, HTTP_STATUS, BIZ_CODE } from '@/constants'
+import router, { resetRouter } from '@/router'
+import { BIZ_CODE, HTTP_STATUS, TOKEN_HEADER_KEY } from '@/constants'
+import { TOKEN_EXPIRED_KEYWORDS, ROUTE_WHITE_LIST } from '@/constants'
 import { extractErrorMessage, markGlobalErrorHandled, showGlobalError } from '@/stores/globalError'
+import {
+  isLogoutInProgress,
+  logoutAndRedirect,
+  registerAuthRequestCanceller,
+  resolveAuthFailure,
+} from '@/utils/auth'
 
 const service: AxiosInstance = axios.create({
   baseURL: '/api',
@@ -45,24 +51,33 @@ const cancelAllPendingRequests = (): void => {
   pendingRequests.clear()
 }
 
+registerAuthRequestCanceller(cancelAllPendingRequests)
+
 let isRedirecting = false
 let isLoggingOut = false
 
 const isTokenExpiredError = (message: string): boolean => {
-  if (!message) return false
-  const lowerMessage = message.toLowerCase()
-  return TOKEN_EXPIRED_KEYWORDS.some((keyword) => lowerMessage.includes(keyword.toLowerCase()))
+  return resolveAuthFailure({ msg: message }).matched
 }
 
 const isWhiteListPage = (): boolean => {
-  const currentPath = router.currentRoute.value.path
-  return (ROUTE_WHITE_LIST as readonly string[]).includes(currentPath)
+  return false
 }
 
 const isLogoutRequest = (config?: InternalAxiosRequestConfig): boolean => {
   if (!config) return false
   const url = config.url || ''
-  return url.includes('/logout') || url.includes('/apis/v1/auth/logout')
+  return url.includes('/logout') || url.includes('/apis/v1/auth/s/logout') || url.includes('/apis/v1/auth/m/logout')
+}
+
+const isBusinessResponse = (
+  payload: unknown,
+): payload is {
+  code?: number | string
+  data?: unknown
+  msg?: string
+} => {
+  return typeof payload === 'object' && payload !== null && ('code' in payload || 'msg' in payload)
 }
 
 const createHandledError = (payload: unknown, fallbackMessage = '系统错误'): Error => {
@@ -76,11 +91,10 @@ const handleTokenExpired = (skipMessage = false): void => {
   cancelAllPendingRequests()
 
   const userStore = useUserStore()
-  const permissionStore = usePermissionStore()
   const menuStore = useMenuStore()
 
   userStore.clearAll()
-  permissionStore.clearPermission()
+  resetRouter()
   menuStore.clearMenu()
 
   if (!skipMessage) {
@@ -117,7 +131,7 @@ service.interceptors.request.use(
 
     const userStore = useUserStore()
     if (userStore.token) {
-      config.headers['token'] = userStore.token
+      config.headers[TOKEN_HEADER_KEY] = userStore.token
     }
     return config
   },
@@ -132,6 +146,28 @@ service.interceptors.response.use(
 
     const res = response.data
     const config = response.config as InternalAxiosRequestConfig
+
+    if (!isBusinessResponse(res)) {
+      return res
+    }
+
+    if (Number(res.code) === BIZ_CODE.SUCCESS) {
+      return res.data
+    }
+
+    if (isLogoutInProgress() && isLogoutRequest(config)) {
+      return Promise.reject(new Error(res.msg || 'Error'))
+    }
+
+    const userStore = useUserStore()
+    const authFailure = resolveAuthFailure(res)
+    if (userStore.hasToken() && authFailure.matched) {
+      void logoutAndRedirect({
+        message: '登录状态已失效，请重新登录',
+        skipMessage: isLogoutInProgress(),
+      })
+      return Promise.reject(createHandledError(authFailure.message || '登录状态已失效，请重新登录'))
+    }
 
     if (res.code === BIZ_CODE.SUCCESS) {
       return res.data
@@ -169,6 +205,20 @@ service.interceptors.response.use(
     }
 
     const config = error.config as InternalAxiosRequestConfig
+
+    if (isLogoutInProgress() && isLogoutRequest(config)) {
+      return Promise.reject(error)
+    }
+
+    const userStore = useUserStore()
+    const authFailure = resolveAuthFailure(error)
+    if (userStore.hasToken() && authFailure.matched) {
+      void logoutAndRedirect({
+        message: '登录状态已失效，请重新登录',
+        skipMessage: isLogoutInProgress(),
+      })
+      return Promise.reject(markGlobalErrorHandled(error))
+    }
 
     if (isLoggingOut && isLogoutRequest(config)) {
       return Promise.reject(error)

@@ -58,8 +58,8 @@
         </el-form-item>
 
         <div class="login-form__meta">
-          <el-button link @click="handleForgot">忘记密码？</el-button>
-          <span class="soft-note">如需重置密码，请联系系统管理员</span>
+          <el-button link @click="forgotDialogVisible = true">忘记密码？</el-button>
+          <span class="soft-note">联调阶段验证码仅校验非空，正式环境以后端逻辑为准</span>
         </div>
 
         <div class="login-form__actions">
@@ -69,6 +69,27 @@
         </div>
       </el-form>
     </section>
+
+    <el-dialog v-model="forgotDialogVisible" title="找回密码" width="460px" @close="resetForgotForm">
+      <el-form ref="forgotFormRef" :model="forgotForm" :rules="forgotRules" label-position="top">
+        <el-form-item label="账号" prop="username">
+          <el-input v-model="forgotForm.username" placeholder="请输入账号" />
+        </el-form-item>
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="forgotForm.newPassword" type="password" show-password placeholder="请输入新密码" />
+        </el-form-item>
+        <el-form-item label="验证码" prop="verificationCode">
+          <el-input v-model="forgotForm.verificationCode" placeholder="联调阶段传任意非空值即可" />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="forgotDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="forgotSubmitting" @click="submitForgotForm">
+          提交重置
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -77,7 +98,7 @@ import { computed, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Hide, Lock, User, View } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance } from 'element-plus'
-import { loginApi } from '../api/auth'
+import { forgotPasswordApi, loginApi } from '../api/auth'
 import { hasHandledGlobalError } from '../stores/globalError'
 import { useUserStore } from '../stores/user'
 
@@ -85,8 +106,11 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const formRef = ref<FormInstance>()
+const forgotFormRef = ref<FormInstance>()
 const loading = ref(false)
+const forgotSubmitting = ref(false)
 const loginPasswordVisible = ref(false)
+const forgotDialogVisible = ref(false)
 
 const form = reactive({
   username: '',
@@ -97,6 +121,18 @@ const form = reactive({
 const rules = {
   username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+}
+
+const forgotForm = reactive({
+  username: '',
+  newPassword: '',
+  verificationCode: '',
+})
+
+const forgotRules = {
+  username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
+  newPassword: [{ required: true, message: '请输入新密码', trigger: 'blur' }],
+  verificationCode: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
 }
 
 const redirectPath = computed(() => {
@@ -129,8 +165,36 @@ const handleLogin = async () => {
   })
 }
 
-const handleForgot = () => {
-  ElMessage.info('如需重置密码，请联系系统管理员')
+const resetForgotForm = () => {
+  forgotForm.username = ''
+  forgotForm.newPassword = ''
+  forgotForm.verificationCode = ''
+  forgotFormRef.value?.clearValidate()
+}
+
+const submitForgotForm = async () => {
+  if (!forgotFormRef.value || forgotSubmitting.value) return
+
+  try {
+    await forgotFormRef.value.validate()
+  } catch {
+    return
+  }
+
+  forgotSubmitting.value = true
+
+  try {
+    await forgotPasswordApi(forgotForm)
+    forgotDialogVisible.value = false
+    ElMessage.success('密码重置成功，请使用新密码登录')
+    resetForgotForm()
+  } catch (error) {
+    if (!hasHandledGlobalError(error)) {
+      ElMessage.error(error instanceof Error ? error.message : '重置失败')
+    }
+  } finally {
+    forgotSubmitting.value = false
+  }
 }
 </script>
 

@@ -92,7 +92,7 @@ export const usePermissionStore = defineStore('permission', () => {
   const transformMenus = (nodes: ApiPermission[]): AppMenu[] => {
     const buildMenu = (treeNodes: ApiPermission[]): AppMenu[] => {
       return treeNodes
-        .filter((node) => node.type < 2)
+        .filter((node) => node.type < 2 && node.status !== 0)
         .map((node) => {
           const menu: AppMenu = {
             id: node.id,
@@ -159,8 +159,9 @@ export const usePermissionStore = defineStore('permission', () => {
         route.redirect = firstChildRelativePath
         route.children = generateRoutes(menu.children!, fullPath)
       } else if (componentPath) {
-        const cleanPath = componentPath.replace('.vue', '')
-        const matchKey = `../views/${cleanPath}.vue`
+        const rawPath = componentPath.replace('.vue', '')
+        const cleanPath = rawPath
+        const matchKey = `../views/${rawPath}.vue`
 
         const viewComponent = viewModules[matchKey]
         if (!viewComponent) {

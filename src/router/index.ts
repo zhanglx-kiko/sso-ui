@@ -1,4 +1,4 @@
-import {
+﻿import {
   RouterView,
   createRouter,
   createWebHistory,
@@ -12,6 +12,7 @@ import NProgress from 'nprogress'
 import 'nprogress/nprogress.css'
 import type { MenuItem } from '@/types/menu'
 import { ROUTE_WHITE_LIST } from '@/constants'
+import { logoutAndRedirect, registerAuthRouter } from '@/utils/auth'
 
 NProgress.configure({ showSpinner: false })
 
@@ -35,7 +36,68 @@ export const layoutRoute: RouteRecordRaw = {
   name: 'Layout',
   component: () => import('@/layouts/BasicLayout.vue'),
   redirect: '/dashboard',
-  children: [],
+  children: [
+    {
+      path: 'dashboard',
+      name: 'Dashboard',
+      component: () => import('@/views/DashboardView.vue'),
+      meta: { title: '仪表盘', requiresAuth: true },
+    },
+    {
+      path: 'system/auth/user',
+      name: 'UserMgr',
+      component: () => import('@/views/system/auth/user/index.vue'),
+      meta: { title: '用户管理', requiresAuth: true },
+    },
+    {
+      path: 'system/auth/role',
+      name: 'RoleMgr',
+      component: () => import('@/views/system/auth/role/index.vue'),
+      meta: { title: '角色管理', requiresAuth: true },
+    },
+    {
+      path: 'system/auth/permission',
+      name: 'MenuMgr',
+      component: () => import('@/views/system/auth/permission/index.vue'),
+      meta: { title: '权限管理', requiresAuth: true },
+    },
+    {
+      path: 'system/auth/dept',
+      name: 'DeptMgr',
+      component: () => import('@/views/system/auth/dept/index.vue'),
+      meta: { title: '部门管理', requiresAuth: true },
+    },
+    {
+      path: 'system/auth/post',
+      name: 'PostMgr',
+      component: () => import('@/views/system/auth/post/index.vue'),
+      meta: { title: '岗位管理', requiresAuth: true },
+    },
+    {
+      path: 'system/auth/app',
+      name: 'AppMgr',
+      component: () => import('@/views/system/auth/app/index.vue'),
+      meta: { title: '应用管理', requiresAuth: true },
+    },
+    {
+      path: 'system/auth/log',
+      name: 'LogAudit',
+      component: () => import('@/views/system/auth/log/index.vue'),
+      meta: { title: '日志审计', requiresAuth: true },
+    },
+    {
+      path: 'system/auth/config',
+      name: 'ConfigMgr',
+      component: () => import('@/views/system/auth/config/index.vue'),
+      meta: { title: '系统参数', requiresAuth: true },
+    },
+    {
+      path: 'system/auth/dict',
+      name: 'DictMgr',
+      component: () => import('@/views/system/auth/dict/index.vue'),
+      meta: { title: '字典管理', requiresAuth: true },
+    },
+  ],
 }
 
 export const fallbackMenus: MenuItem[] = [
@@ -47,32 +109,83 @@ export const fallbackMenus: MenuItem[] = [
     title: '仪表盘',
   },
   {
-    id: 'users',
-    name: 'UserMgr',
-    path: '/system/auth/user',
-    icon: 'User',
-    title: '用户管理',
-  },
-  {
     id: 'system',
-    name: 'System',
+    name: 'SystemInfra',
     path: '/system',
     icon: 'Setting',
-    title: '系统管理',
+    title: '系统基础设施',
     children: [
       {
-        id: 'system-menu',
-        name: 'MenuMgr',
-        path: '/system/auth/permission',
-        icon: 'List',
-        title: '菜单管理',
-      },
-      {
-        id: 'system-role',
-        name: 'RoleMgr',
-        path: '/system/auth/role',
-        icon: 'User',
-        title: '角色管理',
+        id: 'system-auth',
+        name: 'PermissionCenter',
+        path: '/system/auth',
+        icon: 'Lock',
+        title: '权限管控',
+        children: [
+          {
+            id: 'users',
+            name: 'UserMgr',
+            path: '/system/auth/user',
+            icon: 'User',
+            title: '用户管理',
+          },
+          {
+            id: 'system-role',
+            name: 'RoleMgr',
+            path: '/system/auth/role',
+            icon: 'UserFilled',
+            title: '角色管理',
+          },
+          {
+            id: 'system-menu',
+            name: 'MenuMgr',
+            path: '/system/auth/permission',
+            icon: 'List',
+            title: '权限管理',
+          },
+          {
+            id: 'system-dept',
+            name: 'DeptMgr',
+            path: '/system/auth/dept',
+            icon: 'Folder',
+            title: '部门管理',
+          },
+          {
+            id: 'system-post',
+            name: 'PostMgr',
+            path: '/system/auth/post',
+            icon: 'Tickets',
+            title: '岗位管理',
+          },
+          {
+            id: 'system-app',
+            name: 'AppMgr',
+            path: '/system/auth/app',
+            icon: 'Grid',
+            title: '应用管理',
+          },
+          {
+            id: 'system-log',
+            name: 'LogAudit',
+            path: '/system/auth/log',
+            icon: 'DocumentChecked',
+            title: '日志审计',
+          },
+          {
+            id: 'system-config',
+            name: 'ConfigMgr',
+            path: '/system/auth/config',
+            icon: 'Setting',
+            title: '系统参数',
+          },
+          {
+            id: 'system-dict',
+            name: 'DictMgr',
+            path: '/system/auth/dict',
+            icon: 'Document',
+            title: '字典管理',
+          },
+        ],
       },
     ],
   },
@@ -102,9 +215,14 @@ const addDynamicRoutes = (routes: RouteRecordRaw[]): void => {
 const initDynamicRoutes = async (): Promise<MenuItem[]> => {
   const permissionStore = usePermissionStore()
   const menuStore = useMenuStore()
+  const userStore = useUserStore()
 
   try {
     const apiData = await permissionStore.fetchPermissions()
+
+    if (!userStore.hasSession()) {
+      return []
+    }
 
     if (!apiData || apiData.length === 0) {
       console.warn('No permission data from API, using fallback menus')
@@ -127,6 +245,10 @@ const initDynamicRoutes = async (): Promise<MenuItem[]> => {
 
     return menuItems
   } catch (error) {
+    if (!userStore.hasSession()) {
+      return []
+    }
+
     console.error('Failed to fetch permissions:', error)
     return initFallbackRoutes()
   }
@@ -144,29 +266,74 @@ const initFallbackRoutes = (): MenuItem[] => {
       meta: { title: '仪表盘', requiresAuth: true },
     },
     {
-      path: '/system/auth/user',
-      name: 'UserMgr',
-      component: () => import('@/views/system/auth/user/UserMgr.vue'),
-      meta: { title: '用户管理', requiresAuth: true },
-    },
-    {
       path: '/system',
-      name: 'System',
+      name: 'SystemInfra',
       component: RouterView,
-      redirect: '/system/auth/permission',
-      meta: { title: '系统管理', requiresAuth: true },
+      redirect: '/system/auth/user',
+      meta: { title: '系统基础设施', requiresAuth: true },
       children: [
         {
-          path: 'auth/permission',
-          name: 'MenuMgr',
-          component: () => import('@/views/system/auth/permission/PermissionMgr.vue'),
-          meta: { title: '菜单管理', requiresAuth: true },
-        },
-        {
-          path: 'auth/role',
-          name: 'RoleMgr',
-          component: () => import('@/views/system/auth/role/RoleMgr.vue'),
-          meta: { title: '角色管理', requiresAuth: true },
+          path: 'auth',
+          name: 'PermissionCenter',
+          component: RouterView,
+          redirect: '/system/auth/user',
+          meta: { title: '权限管控', requiresAuth: true },
+          children: [
+            {
+              path: 'user',
+              name: 'UserMgr',
+              component: () => import('@/views/system/auth/user/index.vue'),
+              meta: { title: '用户管理', requiresAuth: true },
+            },
+            {
+              path: 'role',
+              name: 'RoleMgr',
+              component: () => import('@/views/system/auth/role/index.vue'),
+              meta: { title: '角色管理', requiresAuth: true },
+            },
+            {
+              path: 'permission',
+              name: 'MenuMgr',
+              component: () => import('@/views/system/auth/permission/index.vue'),
+              meta: { title: '权限管理', requiresAuth: true },
+            },
+            {
+              path: 'dept',
+              name: 'DeptMgr',
+              component: () => import('@/views/system/auth/dept/index.vue'),
+              meta: { title: '部门管理', requiresAuth: true },
+            },
+            {
+              path: 'post',
+              name: 'PostMgr',
+              component: () => import('@/views/system/auth/post/index.vue'),
+              meta: { title: '岗位管理', requiresAuth: true },
+            },
+            {
+              path: 'app',
+              name: 'AppMgr',
+              component: () => import('@/views/system/auth/app/index.vue'),
+              meta: { title: '应用管理', requiresAuth: true },
+            },
+            {
+              path: 'log',
+              name: 'LogAudit',
+              component: () => import('@/views/system/auth/log/index.vue'),
+              meta: { title: '日志审计', requiresAuth: true },
+            },
+            {
+              path: 'config',
+              name: 'ConfigMgr',
+              component: () => import('@/views/system/auth/config/index.vue'),
+              meta: { title: '系统参数', requiresAuth: true },
+            },
+            {
+              path: 'dict',
+              name: 'DictMgr',
+              component: () => import('@/views/system/auth/dict/index.vue'),
+              meta: { title: '字典管理', requiresAuth: true },
+            },
+          ],
         },
       ],
     },
@@ -191,21 +358,39 @@ router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
   const permissionStore = usePermissionStore()
   const hasToken = userStore.hasToken()
+  const hasSession = userStore.hasSession()
+
+  if (hasToken && !hasSession) {
+    await logoutAndRedirect({
+      message: '登录信息已失效，请重新登录',
+    })
+    NProgress.done()
+    next(false)
+    return
+  }
 
   if (to.meta.title) {
     document.title = `${to.meta.title} - 后台管理系统`
   }
 
-  if (hasToken) {
+  if (hasSession) {
     if (to.path === '/login') {
       next({ path: '/' })
       NProgress.done()
     } else {
       if (!permissionStore.isLoaded) {
-        router.addRoute(layoutRoute)
+        if (!router.hasRoute('Layout')) {
+          router.addRoute(layoutRoute)
+        }
+
         await initDynamicRoutes()
 
-        // 用 fullPath 确保使用纯净的路径重新匹配
+        if (!userStore.hasSession()) {
+          NProgress.done()
+          next(false)
+          return
+        }
+
         next({ path: to.fullPath, replace: true })
       } else {
         next()
@@ -215,7 +400,10 @@ router.beforeEach(async (to, from, next) => {
     if (isWhiteListPage(to.path)) {
       next()
     } else {
-      next(`/login?redirect=${to.path}`)
+      next({
+        path: '/login',
+        query: { redirect: to.fullPath },
+      })
       NProgress.done()
     }
   }
@@ -246,4 +434,7 @@ export const resetRouter = (): void => {
   permissionStore.clearPermission()
 }
 
+registerAuthRouter(router, resetRouter)
+
 export default router
+

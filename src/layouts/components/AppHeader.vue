@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <header class="app-header">
     <div class="app-header__main">
       <div class="app-header__lead">
@@ -191,6 +191,7 @@ import { usePermissionStore } from '@/stores/permission'
 import { resetRouter } from '@/router'
 import { cancelAllRequests, setLoggingOut } from '@/utils/request'
 import { logoutApi, updatePasswordApi } from '@/api/auth'
+import { logoutAndRedirect, setLogoutInProgress } from '@/utils/auth'
 import {
   ArrowDown,
   FullScreen,
@@ -299,7 +300,7 @@ const breadcrumbs = computed(() => {
       path: index === list.length - 1 ? '' : item.path,
     }))
 
-  if (matchedItems.length > 0) {
+  if (matchedItems.length > 1) {
     return matchedItems
   }
 
@@ -370,8 +371,13 @@ const submitPasswordForm = async () => {
       })
 
       passwordDialogVisible.value = false
-      ElMessage.success('密码修改成功')
       resetPasswordForm()
+      ElMessage.success('密码已修改，请重新登录')
+      await logoutAndRedirect({
+        redirect: false,
+        skipMessage: true,
+      })
+      return
     } finally {
       passwordSubmitting.value = false
     }
@@ -397,26 +403,25 @@ const handleCommand = async (command: string) => {
         })
 
         isLoggingOut.value = true
+        setLogoutInProgress(true)
         setLoggingOut(true)
         cancelAllRequests()
-
-        userStore.clearAll()
-        permissionStore.clearPermission()
-        menuStore.clearMenu()
-        resetRouter()
-
         try {
           await logoutApi()
         } catch {
           // ignore API errors on logout
         }
-
         ElMessage.success('已安全退出登录')
-        router.push('/login')
+        await logoutAndRedirect({
+          redirect: false,
+          skipMessage: true,
+        })
+        return
       } catch {
         // cancelled by user
       } finally {
         isLoggingOut.value = false
+        setLogoutInProgress(false)
         setLoggingOut(false)
       }
       break
@@ -697,3 +702,4 @@ onBeforeUnmount(() => {
   }
 }
 </style>
+
